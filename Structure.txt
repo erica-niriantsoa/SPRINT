@@ -1,0 +1,16 @@
+MiniFrameworkServlet/
+│
+├── Framework/
+│   ├── pom.xml
+│   └── src/main/java/framework/FrontServlet.java
+│
+├── Test/
+│   ├── pom.xml
+│   ├── lib/ (vide pour l’instant)
+│   └── src/main/webapp/
+│       ├── WEB-INF/web.xml
+│       ├── index.jsp
+│       └── autres.jsp
+│   └── deploy.bat
+│
+└── README.md
