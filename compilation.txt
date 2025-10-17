@@ -8,6 +8,3 @@ cd Test
 mvn clean install
 mvn clean package
 
-
-cd ..
-.\deploy.bat

@@ -16,7 +16,13 @@ if not exist "%TOMCAT_PATH%" (
 )
 
 :: ---------------------------
-:: 2. Compiler le Framework
+:: 2. Aller dans le repertoire du projet
+:: ---------------------------
+cd /d "%~dp0"
+echo Repertoire courant: %CD%
+
+:: ---------------------------
+:: 3. Compiler le Framework
 :: ---------------------------
 echo.
 echo Compilation du Framework...
@@ -27,7 +33,7 @@ if not exist "Framework" (
 )
 
 cd Framework
-mvn clean install
+call mvn clean install
 if %ERRORLEVEL% NEQ 0 (
     echo ERREUR: Erreur lors de la compilation du Framework
     cd ..
@@ -37,16 +43,17 @@ if %ERRORLEVEL% NEQ 0 (
 cd ..
 
 :: ---------------------------
-:: 3. Verifier que le JAR du Framework a ete cree
+:: 4. Verifier que le JAR du Framework a ete cree (chemin relatif)
 :: ---------------------------
 if not exist "Framework\target\Framework-1.0-SNAPSHOT.jar" (
     echo ERREUR: Le JAR du Framework n'a pas ete genere
+    dir Framework\target\
     pause
     exit /b 1
 )
 
 :: ---------------------------
-:: 4. Copier le jar dans Test/lib
+:: 5. Copier le jar dans Test/lib (chemins relatifs)
 :: ---------------------------
 echo.
 echo Copie du JAR Framework dans Test/lib...
@@ -59,7 +66,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 :: ---------------------------
-:: 5. Compiler Test pour generer le WAR
+:: 6. Compiler Test pour generer le WAR
 :: ---------------------------
 echo.
 echo Compilation du Test...
@@ -70,7 +77,7 @@ if not exist "Test" (
 )
 
 cd Test
-mvn clean package
+call mvn clean package
 if %ERRORLEVEL% NEQ 0 (
     echo ERREUR: Erreur lors de la compilation du Test
     cd ..
@@ -79,7 +86,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 :: ---------------------------
-:: 6. Detecter le WAR genere
+:: 7. Detecter le WAR genere
 :: ---------------------------
 set "WAR_FILE="
 if exist "target\Test.war" (
@@ -88,6 +95,8 @@ if exist "target\Test.war" (
     set "WAR_FILE=target\Test-1.0-SNAPSHOT.war"
 ) else (
     echo ERREUR: Aucun fichier WAR trouve dans Test\target\
+    echo Contenu du dossier target:
+    dir target\
     cd ..
     pause
     exit /b 1
@@ -97,18 +106,26 @@ echo WAR detecte: %WAR_FILE%
 cd ..
 
 :: ---------------------------
-:: 7. Supprimer l'ancien deploiement
+:: 8. Arreter Tomcat temporairement (optionnel mais recommande)
+:: ---------------------------
+echo.
+echo Arret de Tomcat...
+net stop "Tomcat10" >nul 2>&1
+timeout /t 3 /nobreak >nul
+
+:: ---------------------------
+:: 9. Supprimer l'ancien deploiement
 :: ---------------------------
 if exist "%TOMCAT_PATH%\Test" (
     echo Suppression de l'ancien deploiement...
-    rmdir /s /q "%TOMCAT_PATH%\Test"
+    rmdir /s /q "%TOMCAT_PATH%\Test" 2>nul
 )
 if exist "%TOMCAT_PATH%\Test.war" (
-    del /q "%TOMCAT_PATH%\Test.war"
+    del /q "%TOMCAT_PATH%\Test.war" 2>nul
 )
 
 :: ---------------------------
-:: 8. Copier le WAR dans Tomcat/webapps
+:: 10. Copier le WAR dans Tomcat/webapps
 :: ---------------------------
 echo.
 echo Copie du WAR dans Tomcat...
@@ -119,3 +136,32 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
+echo ✅ WAR copie avec succes: %TOMCAT_PATH%\Test.war
+
+:: ---------------------------
+:: 11. Redemarrer Tomcat
+:: ---------------------------
+echo.
+echo Demarrage de Tomcat...
+net start "Tomcat10" >nul 2>&1
+echo Attente du deploiement...
+timeout /t 10 /nobreak >nul
+
+:: ---------------------------
+:: 12. Verification
+:: ---------------------------
+echo.
+echo === VERIFICATION ===
+if exist "%TOMCAT_PATH%\Test" (
+    echo ✅ Deploiement reussi: %TOMCAT_PATH%\Test
+    echo.
+    echo URLs a tester:
+    echo http://localhost:8080/Test/
+    echo http://localhost:8080/Test/index.jsp
+) else (
+    echo ❌ Le deploiement a echoue - le dossier Test n'a pas ete cree
+)
+
+echo.
+echo === FIN DU DEPLOIEMENT ===
+pause
