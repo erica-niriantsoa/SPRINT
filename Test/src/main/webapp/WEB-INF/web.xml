@@ -16,4 +16,12 @@
         <url-pattern>/*</url-pattern>
     </servlet-mapping>
 
+    <servlet>
+        <servlet-name>AnnotationServlet</servlet-name>
+        <servlet-class>framework.AnnotationServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AnnotationServlet</servlet-name>
+        <url-pattern>/annotations/*</url-pattern>
+    </servlet-mapping>
 </web-app>

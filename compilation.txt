@@ -8,3 +8,7 @@ cd Test
 mvn clean install
 mvn clean package
 
+#compilation Methode url sprint 2
+cd Test
+mvn clean compile
+java -cp "target/classes;../Framework/target/classes" test.Main
