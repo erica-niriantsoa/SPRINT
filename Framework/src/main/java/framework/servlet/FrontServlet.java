@@ -1,4 +1,4 @@
-package framework;
+package framework.servlet;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
