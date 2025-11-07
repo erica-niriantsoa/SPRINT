@@ -10,4 +10,9 @@ public class Test1Controller {
     public String hello() {
         return "/test1/hello.jsp";
     }
+
+    @Url("/tsyaikoe")
+    public Double tsyaiko() {
+        return 5.2;
+    }
 }
