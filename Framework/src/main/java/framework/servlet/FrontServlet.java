@@ -53,10 +53,41 @@ public class FrontServlet extends HttpServlet {
         AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(getServletContext(), path);
 
         if(mapping != null){
-            displayMappingInfo(out, path, mapping);
+            // SPRINT4 - Exécuter et afficher le résultat
+            Object result = invokeControllerMethod(mapping);
+            displayMethodResult(out, path, mapping, result); // ← APPEL CORRECT !
         } else {
             displayError(response,out, path);
         }
+    }
+
+    // SPRINT 4
+    private Object invokeControllerMethod(AnnotationScanner.MappingInfo mapping){
+        try {
+        // Créer une instance du contrôleur
+        Object controllerInstance = mapping.getControllerClass().getDeclaredConstructor().newInstance();
+        
+        // Invoquer la méthode
+        Method method = mapping.getMethod();
+        return method.invoke(controllerInstance);
+        
+    } catch (Exception e) {
+        return " Erreur lors de l'exécution: " + e.getMessage();
+    }
+    }
+
+
+    private void displayMethodResult(PrintWriter out, String url, AnnotationScanner.MappingInfo mapping, Object result) {
+        Class<?> controllerClass = mapping.getControllerClass();
+        Method method = mapping.getMethod();
+        
+        out.println("=== MÉTHODE EXÉCUTÉE ===" +
+            "\nURL: " + url +
+            "\nContrôleur: " + controllerClass.getName() +
+            "\nMéthode: " + method.getName() +
+            "\nType de retour: " + method.getReturnType().getSimpleName() +
+            "\nValeur retournée: " + result +
+            "\n Méthode exécutée avec succès !");
     }
 
     private void displayAllMappings(PrintWriter out) {
@@ -74,26 +105,15 @@ public class FrontServlet extends HttpServlet {
     }
 
     private void displayError(HttpServletResponse response, PrintWriter out, String url) {
-    response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
-    StringBuilder sb = new StringBuilder();
-    sb.append("HTTP 404 - Not Found\n")
-      .append("=====================\n\n");
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
+        StringBuilder sb = new StringBuilder();
+        sb.append("HTTP 404 - Not Found\n")
+        .append("=====================\n\n");
 
-    sb.append("\nConsultez la page d'accueil pour plus de détails: /");
-    out.print(sb.toString());
-}
-
-    private void displayMappingInfo(PrintWriter out, String url, AnnotationScanner.MappingInfo mapping) {
-        Class<?> controllerClass = mapping.getControllerClass();
-        Method method = mapping.getMethod();
-        
-        out.println("=== URL MAPPÉE TROUVÉE ===" +
-            "\nURL: " + url +
-            "\nContrôleur: " + controllerClass.getName() +
-            "\nMéthode: " + method.getName() +
-            // "\nType: " + method.getReturnType().getSimpleName() +
-            "\n Framework a reconnu cette URL !");
+        sb.append("\nConsultez la page d'accueil pour plus de détails: /");
+        out.print(sb.toString());
     }
+
 
     
     @Override
