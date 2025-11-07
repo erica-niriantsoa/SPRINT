@@ -12,3 +12,16 @@ mvn clean package
 cd Test
 mvn clean compile
 java -cp "target/classes;../Framework/target/classes" test.Main
+
+voila le sprint 3
+il devrait avoir un bout de code lancer
+ce code la va scanner tout les classpath pour savoir s'il y a notre controller, et  s'il y en a il va boucler dans le methode qui sont les annoter a l'url , au demmarage de l'application on devrait avoir tout les url prise en charge et les classes et les methodes associer a l'url 
+on va l'adapter dans le FrontServlet
+
+je repete
+idealement au demmarage du test
+il devrait avoir un bout de code lancer, il va scanner tout les classpath controller et savoir qui sont les url annoter a ce classpath
+et lorsque on test, llorsque on clique sur la barre on peut savoir si l'url tapper on les supportes ou pas en affichant les classes et les methodes associer, si on le supporte pas on va afficher qu'on supporte pas les url
+
+les methode init de FrontServlet qu'on va utiliser 
+et apres on va l'adapter au initializer ou je sais pas
