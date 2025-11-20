@@ -3,5 +3,6 @@ framework\scanner\AnnotationScanner$MappingInfo.class
 framework\scanner\AnnotationScanner.class
 framework\scanner\listener\AnnotationInitializer.class
 framework\annotation\Controller.class
+framework\ModelAndView\ModelAndView.class
 framework\annotation\scanner\ClassPathScanner.class
 framework\annotation\Url.class

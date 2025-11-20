@@ -1,5 +1,6 @@
 package framework.servlet;
 
+import framework.ModelAndView.ModelAndView;
 import framework.scanner.AnnotationScanner;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -47,19 +48,62 @@ public class FrontServlet extends HttpServlet {
         processUrlMapping(request, response, path);
     }
 
-    private void processUrlMapping(HttpServletRequest request, HttpServletResponse response, String path) throws IOException {
-        response.setContentType("text/plain;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(getServletContext(), path);
-
-        if(mapping != null){
-            // SPRINT4 - Exécuter et afficher le résultat
-            Object result = invokeControllerMethod(mapping);
-            displayMethodResult(out, path, mapping, result); // ← APPEL CORRECT !
-        } else {
-            displayError(response,out, path);
+    // SPRINT4-bis
+    private void handleModelView(HttpServletRequest request, HttpServletResponse response, ModelAndView mv) 
+    throws IOException {
+    
+        String viewPath = mv.getView();
+        if (getServletContext().getResource(viewPath) == null) {
+            // Vue n'existe pas → erreur
+            response.setContentType("text/plain;charset=UTF-8");
+            PrintWriter out = response.getWriter();
+            out.println(" ERREUR: La vue '" + viewPath + "' n'existe pas");
+            return;
+        }
+        
+        // Vue existe → forward
+        RequestDispatcher dispatcher = request.getRequestDispatcher(viewPath);
+        try {
+            dispatcher.forward(request, response);
+        } catch (ServletException e) {
+            response.setContentType("text/plain;charset=UTF-8");
+            PrintWriter out = response.getWriter();
+            out.println(" Erreur lors du rendu de la vue: " + viewPath);
+            out.println("Détail: " + e.getMessage());
         }
     }
+
+    // private void handleTextResult(HttpServletResponse response, String path, 
+    //                          AnnotationScanner.MappingInfo mapping, Object result) 
+    //     throws IOException {
+    //     response.setContentType("text/plain;charset=UTF-8");
+    //     PrintWriter out = response.getWriter();
+    //     displayMethodResult(out, path, mapping, result);
+    // }
+
+    private void processUrlMapping(HttpServletRequest request, HttpServletResponse response, String path) throws IOException {
+    AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(getServletContext(), path);
+
+    if(mapping != null){
+        Object result = invokeControllerMethod(mapping);
+
+        if (result instanceof ModelAndView) {
+            handleModelView(request, response, (ModelAndView) result);
+        } else {
+            // Seulement ici on prépare l'affichage texte
+            response.setContentType("text/plain;charset=UTF-8");
+            PrintWriter out = response.getWriter();
+            displayMethodResult(out, path, mapping, result);
+        }
+        
+    } else {
+        // Et ici pour les erreurs 404
+        response.setContentType("text/plain;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        displayError(response, out, path);
+    }
+}
+    
 
     // SPRINT 4
     private Object invokeControllerMethod(AnnotationScanner.MappingInfo mapping){
