@@ -12,8 +12,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 
-@WebServlet("/*")
+
 public class FrontServlet extends HttpServlet {
 
     RequestDispatcher defaultDispatcher;
@@ -23,6 +24,12 @@ public class FrontServlet extends HttpServlet {
     @Override
     public void init() {
         defaultDispatcher = getServletContext().getNamedDispatcher("default");
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        doGet(request, response);
     }
 
     @Override
@@ -50,36 +57,35 @@ public class FrontServlet extends HttpServlet {
 
     // SPRINT4-bis
     private void handleModelView(HttpServletRequest request, HttpServletResponse response, ModelAndView mv) 
-    throws IOException {
+throws IOException {
     
-        String viewPath = mv.getView();
-        if (getServletContext().getResource(viewPath) == null) {
-            // Vue n'existe pas → erreur
-            response.setContentType("text/plain;charset=UTF-8");
-            PrintWriter out = response.getWriter();
-            out.println(" ERREUR: La vue '" + viewPath + "' n'existe pas");
-            return;
-        }
-        
-        // Vue existe → forward
-        RequestDispatcher dispatcher = request.getRequestDispatcher(viewPath);
-        try {
-            dispatcher.forward(request, response);
-        } catch (ServletException e) {
-            response.setContentType("text/plain;charset=UTF-8");
-            PrintWriter out = response.getWriter();
-            out.println(" Erreur lors du rendu de la vue: " + viewPath);
-            out.println("Détail: " + e.getMessage());
-        }
+    String viewName = mv.getView();
+    if (getServletContext().getResource(viewName) == null) {
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println(" ERREUR: La vue '" + viewName + "' n'existe pas");
+        return;
     }
 
-    // private void handleTextResult(HttpServletResponse response, String path, 
-    //                          AnnotationScanner.MappingInfo mapping, Object result) 
-    //     throws IOException {
-    //     response.setContentType("text/plain;charset=UTF-8");
-    //     PrintWriter out = response.getWriter();
-    //     displayMethodResult(out, path, mapping, result);
-    // }
+    Map<String, Object> model = mv.getModel();
+    if (model != null) {
+        for (Map.Entry<String, Object> entry : model.entrySet()) {
+            request.setAttribute(entry.getKey(), entry.getValue());
+        }
+    }
+    
+    RequestDispatcher dispatcher = request.getRequestDispatcher(viewName);
+    try {
+        dispatcher.forward(request, response);
+    }   
+    catch (Exception e) {
+        // CORRECTION : Afficher l'erreur
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println(" ERREUR lors du forward: " + e.getMessage());
+        e.printStackTrace(); // Pour voir dans les logs
+    }
+}
 
     private void processUrlMapping(HttpServletRequest request, HttpServletResponse response, String path) throws IOException {
     AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(getServletContext(), path);
@@ -160,9 +166,5 @@ public class FrontServlet extends HttpServlet {
 
 
     
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        doGet(request, response);
-    }
+    
 }
