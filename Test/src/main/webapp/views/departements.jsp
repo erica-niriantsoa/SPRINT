@@ -5,7 +5,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Liste des departements</title>
+    <title>Liste des nalkbnsklhbndkn</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; }
         ul { list-style-type: square; }
