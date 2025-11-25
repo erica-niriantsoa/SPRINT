@@ -60,12 +60,21 @@ public class AnnotationScanner {
             if (method.isAnnotationPresent(Url.class)) {
                 Url urlAnnotation = method.getAnnotation(Url.class);
                 String url = urlAnnotation.value();
+
+                String cleanUrl = removeQueryParams(url);
                 
                 urlMappings.put(url, new MappingInfo(controllerClass, method));
                 System.out.println(" " + url + " → " + 
                     controllerClass.getSimpleName() + "." + method.getName());
             }
         }
+    }
+
+    private String removeQueryParams(String url) {
+        if (url.contains("?")) {
+            return url.substring(0, url.indexOf("?"));
+        }
+        return url;
     }
     
     public MappingInfo getMapping(String url) {
@@ -114,4 +123,6 @@ public class AnnotationScanner {
         List<String> urls = (List<String>) context.getAttribute("framework.mappedUrls");
         return urls != null ? urls : new ArrayList<>();
     }
+
+    
 }

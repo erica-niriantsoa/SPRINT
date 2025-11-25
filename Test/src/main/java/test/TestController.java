@@ -17,4 +17,17 @@ public class TestController {
         System.out.println("✅ Méthode testAnnotation() appelée !");
         return "/test-annotation.jsp";
     }
+
+  
+    
+    @Url("/hello")
+    public String hello() {
+        return "hello.jsp";
+    }
+    
+    @Url("/test")
+    public String test() {
+        return "test.jsp";
+    }
+
 }
