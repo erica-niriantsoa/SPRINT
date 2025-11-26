@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project name="maven-antrun-" default="main">
-  <target name="main">
-    <mkdir dir="../Test/lib" />
-    <copy file="D:\cours\S5\TECHNO ACCES RESEAU\SPRINT\Framework\target/Framework-1.0-SNAPSHOT.jar" todir="../Test/lib" />
-  </target>
-</project>
