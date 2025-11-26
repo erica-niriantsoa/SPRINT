@@ -39,7 +39,7 @@ public class EtudiantController {
         
         return mv;
     }
-    
+
     // ========================================================================
     // SPRINT 6-bis : Convention de noms avec query params
     // ========================================================================
@@ -47,4 +47,24 @@ public class EtudiantController {
     public String rechercheEtudiant(String nom, int age) {
         return "SPRINT 6-bis : Recherche nom=" + nom + ", age=" + age;
     }
+
+    // ========================================================================
+    // SPRINT 6-ter : Annotation @RequestParam
+    // ========================================================================
+    @Url("/etudiant-details")
+    public String getEtudiantDetails(
+            @RequestParam("student_id") int id, 
+            @RequestParam("nom") String nom) {
+        return "SPRINT 6-ter : Details ID=" + id + ", Nom=" + nom;
+    }
+    
+    // ========================================================================
+    // COMBINAISON : Variable URL + @RequestParam
+    // ========================================================================
+    @Url("/cours/{id}/inscription")
+    public String inscrireCours(int id, @RequestParam("etudiant") int etudiantId) {
+        return "COMBINAISON : Inscription etudiant " + etudiantId + " au cours " + id;
+    }
+
+
 }
