@@ -39,4 +39,12 @@ public class EtudiantController {
         
         return mv;
     }
+    
+    // ========================================================================
+    // SPRINT 6-bis : Convention de noms avec query params
+    // ========================================================================
+    @Url("/recherche-etudiant")
+    public String rechercheEtudiant(String nom, int age) {
+        return "SPRINT 6-bis : Recherche nom=" + nom + ", age=" + age;
+    }
 }

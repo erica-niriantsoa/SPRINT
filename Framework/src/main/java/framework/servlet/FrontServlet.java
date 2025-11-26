@@ -157,7 +157,7 @@ public class FrontServlet extends HttpServlet {
 
     private void displayAllMappings(PrintWriter out) {
         StringBuilder sb = new StringBuilder();
-        sb.append("=== FRAMEWORK SPRINT 6 - URLs MAPPEES ===\n\n")
+        sb.append("=== FRAMEWORK SPRINT 6-bis - URLs MAPPEES ===\n\n")
           .append("URLs detectees automatiquement:\n");
         
         for (String url : AnnotationScanner.getMappedUrlsFromContext(getServletContext())) {
