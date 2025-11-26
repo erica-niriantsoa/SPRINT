@@ -57,6 +57,9 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
+                    <compilerArgs>
+                        <arg>-parameters</arg>  <!-- ✅ CORRECTEMENT PLACÉ -->
+                    </compilerArgs>
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>

@@ -1,6 +1,7 @@
 package framework.servlet;
 
 import framework.ModelAndView.ModelAndView;
+import framework.dispatcher.FrameworkDispatcher;
 import framework.scanner.AnnotationScanner;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -9,9 +10,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Method;
 import java.util.Map;
 
+/**
+ * FrontServlet allégé - Délègue la logique métier
+ */
 public class FrontServlet extends HttpServlet {
 
     RequestDispatcher defaultDispatcher;
@@ -35,54 +38,80 @@ public class FrontServlet extends HttpServlet {
         String uri = request.getRequestURI();        
         String context = request.getContextPath();   
         String path = uri.substring(context.length());
-
         String cleanPath = removeQueryParams(path);        
 
+        // Gestion des cas spéciaux
+        if (isSpecialCase(request, response, cleanPath)) {
+            return;
+        }
+
+        // Traitement framework
+        processFrameworkRequest(request, response, cleanPath);
+    }
+
+    private boolean isSpecialCase(HttpServletRequest request, HttpServletResponse response, String path) 
+    throws IOException {
+        
         if (path.equals("/") || path.equals("")) {
             response.setContentType("text/plain");
             displayAllMappings(response.getWriter());
-            return;
+            return true;
         }
 
-        
         if (request.getAttribute(FRAMEWORK_PROCESSED) != null) {
-            getServletContext().getNamedDispatcher("jsp").forward(request, response);
-            return;
+            try {
+                getServletContext().getNamedDispatcher("jsp").forward(request, response);
+            } catch (ServletException e) {
+                e.printStackTrace();
+            }
+            return true;
         }
 
-        // D'ABORD verifier les exclusions
         if (shouldExcludeFromFramework(path)) {
-            defaultDispatcher.forward(request, response);
-            return;
+            try {
+                defaultDispatcher.forward(request, response);
+            } catch (ServletException e) {
+                e.printStackTrace();
+            }
+            return true;
         }
 
-        
         boolean resourceExists = getServletContext().getResource(path) != null;
         if (resourceExists) {
-            defaultDispatcher.forward(request, response);
-            return;
+            try {
+                defaultDispatcher.forward(request, response);
+            } catch (ServletException e) {
+                e.printStackTrace();
+            }
+            return true;
         }
-
-        processUrlMapping(request, response, path);
+        
+        return false;
     }
 
-    private String removeQueryParams(String path) {
-        if (path.contains("?")) {
-            return path.substring(0, path.indexOf("?"));
+    private void processFrameworkRequest(HttpServletRequest request, HttpServletResponse response, String path) 
+    throws IOException {
+        
+        Object result = FrameworkDispatcher.processRequest(request, path);
+        
+        if (result != null) {
+            if (result instanceof ModelAndView) {
+                handleModelView(request, response, (ModelAndView) result);
+            } else {
+                response.setContentType("text/plain;charset=UTF-8");
+                PrintWriter out = response.getWriter();
+                
+                AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(
+                    getServletContext(), path);
+                FrameworkDispatcher.displayMethodResult(out, path, mapping, result);
+            }
+        } else {
+            displayNotFound(response, path);
         }
-        return path;
-    }
-    private boolean shouldExcludeFromFramework(String path) {
-        return path.endsWith(".css") || 
-               path.endsWith(".js") || 
-               path.startsWith("/WEB-INF/") ||
-               path.startsWith("/images/") ||
-               path.startsWith("/css/") ||
-               path.startsWith("/js/");
     }
 
     private void handleModelView(HttpServletRequest request, HttpServletResponse response, ModelAndView mv) 
-    throws IOException, ServletException {
+    throws IOException {
         
         String viewName = mv.getView();
         
@@ -100,14 +129,12 @@ public class FrontServlet extends HttpServlet {
             }
         }
         
-        // MARQUER que cette requete a ete traitee par le framework
         request.setAttribute(FRAMEWORK_PROCESSED, true);
         
         RequestDispatcher dispatcher = request.getRequestDispatcher(viewName);
         try {
             dispatcher.forward(request, response);
-        }   
-        catch (Exception e) {
+        } catch (Exception e) {
             response.setContentType("text/html");
             PrintWriter out = response.getWriter();
             out.println("ERREUR lors du forward: " + e.getMessage());
@@ -115,55 +142,23 @@ public class FrontServlet extends HttpServlet {
         }
     }
 
-    private void processUrlMapping(HttpServletRequest request, HttpServletResponse response, String path) 
-    throws IOException, ServletException {
-        AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(getServletContext(), path);
-
-        if(mapping != null){
-            Object result = invokeControllerMethod(mapping);
-
-            if (result instanceof ModelAndView) {
-                handleModelView(request, response, (ModelAndView) result);
-            } else {
-                response.setContentType("text/plain;charset=UTF-8");
-                PrintWriter out = response.getWriter();
-                displayMethodResult(out, path, mapping, result);
-            }
-            
-        } else {
-            response.setContentType("text/plain;charset=UTF-8");
-            PrintWriter out = response.getWriter();
-            displayError(response, out, path);
+    private String removeQueryParams(String path) {
+        if (path.contains("?")) {
+            return path.substring(0, path.indexOf("?"));
         }
+        return path;
     }
-
-    private Object invokeControllerMethod(AnnotationScanner.MappingInfo mapping){
-        try {
-            Object controllerInstance = mapping.getControllerClass().getDeclaredConstructor().newInstance();
-            Method method = mapping.getMethod();
-            return method.invoke(controllerInstance);
-        } catch (Exception e) {
-            return "Erreur lors de l'execution: " + e.getMessage();
-        }
-    }
-
-    private void displayMethodResult(PrintWriter out, String url, AnnotationScanner.MappingInfo mapping, Object result) {
-        Class<?> controllerClass = mapping.getControllerClass();
-        Method method = mapping.getMethod();
-        
-        out.println("=== METHODE EXECUTEE ===" +
-            "\nURL: " + url +
-            "\nControleur: " + controllerClass.getName() +
-            "\nMethode: " + method.getName() +
-            "\nType de retour: " + method.getReturnType().getSimpleName() +
-            "\nValeur retournee: " + result +
-            "\nMethode executee avec succes !");
+    
+    private boolean shouldExcludeFromFramework(String path) {
+        return path.endsWith(".css") || path.endsWith(".js") || 
+               path.startsWith("/WEB-INF/") || path.startsWith("/images/") ||
+               path.startsWith("/css/") || path.startsWith("/js/");
     }
 
     private void displayAllMappings(PrintWriter out) {
         StringBuilder sb = new StringBuilder();
-        sb.append("=== FRAMEWORK SPRINT 3 - URLs MAPPEES ===\n\n")
-        .append("URLs detectees automatiquement:\n");
+        sb.append("=== FRAMEWORK SPRINT 6 - URLs MAPPEES ===\n\n")
+          .append("URLs detectees automatiquement:\n");
         
         for (String url : AnnotationScanner.getMappedUrlsFromContext(getServletContext())) {
             sb.append("  ").append(url).append("\n");
@@ -173,12 +168,16 @@ public class FrontServlet extends HttpServlet {
         out.print(sb.toString());
     }
 
-    private void displayError(HttpServletResponse response, PrintWriter out, String url) {
+    private void displayNotFound(HttpServletResponse response, String url) throws IOException {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
+        response.setContentType("text/plain;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        
         StringBuilder sb = new StringBuilder();
         sb.append("HTTP 404 - Not Found\n")
-        .append("=====================\n\n");
-        sb.append("\nConsultez la page d'accueil pour plus de details: /");
+          .append("=====================\n\n")
+          .append("URL non trouvee: ").append(url).append("\n\n")
+          .append("Consultez la page d'accueil pour plus de details: /");
         out.print(sb.toString());
     }
 }
