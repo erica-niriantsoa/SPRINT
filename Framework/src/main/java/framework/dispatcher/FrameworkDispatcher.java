@@ -1,7 +1,7 @@
 package framework.dispatcher;
 
-import framework.ModelAndView.ModelAndView;
 import framework.annotation.RequestParam;
+import framework.mapping.MappingInfo;
 import framework.scanner.AnnotationScanner;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,20 +10,22 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 /**
- * SPRINT 6 : Gère l'injection des paramètres et l'exécution des contrôleurs
+ * SPRINT 6 + SPRINT 7 : Gere l'injection des parametres et l'execution des controleurs
  */
 public class FrameworkDispatcher {
     
-    public static Object processRequest(HttpServletRequest request, String path) 
+    /**
+     * SPRINT 7 : Traite une requete avec httpMethod
+     */
+    public static Object processRequest(HttpServletRequest request, String path, String httpMethod) 
     throws IOException {
         
-        AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(
-            request.getServletContext(), path);
+        // SPRINT 7 : Passer httpMethod à getMappingFromContext
+        MappingInfo mapping = AnnotationScanner.getMappingFromContext(
+            request.getServletContext(), path, httpMethod);
             
         if (mapping != null) {
             return invokeControllerMethod(request, mapping);
@@ -32,8 +34,7 @@ public class FrameworkDispatcher {
         return null;
     }
     
-    private static Object invokeControllerMethod(HttpServletRequest request, 
-                                               AnnotationScanner.MappingInfo mapping) {
+    private static Object invokeControllerMethod(HttpServletRequest request, MappingInfo mapping) {
         try {
             Object controllerInstance = mapping.getControllerClass().getDeclaredConstructor().newInstance();
             Method method = mapping.getMethod();
@@ -47,27 +48,38 @@ public class FrameworkDispatcher {
         }
     }
     
+    /**
+     * SPRINT 6 + SPRINT 6-bis + SPRINT 6-ter : Injection de parametres
+     */
     private static Object[] prepareMethodArguments(HttpServletRequest request, Method method, 
-                                                  AnnotationScanner.MappingInfo mapping) {
+                                                  MappingInfo mapping) {
         Parameter[] parameters = method.getParameters();
         Object[] args = new Object[parameters.length];
+        
+        // SPRINT 6 : Recuperer variables URL
         Map<String, String> urlParams = mapping.getUrlParams();
         
         for (int i = 0; i < parameters.length; i++) {
             Parameter param = parameters[i];
             Class<?> paramType = param.getType();
             
+            // SPRINT 6-ter : @RequestParam
             if (param.isAnnotationPresent(RequestParam.class)) {
                 RequestParam annotation = param.getAnnotation(RequestParam.class);
                 String paramValue = request.getParameter(annotation.value());
                 args[i] = convertParameter(paramValue, paramType);
-            } else {
+            } 
+            // SPRINT 6 + SPRINT 6-bis : Convention de noms
+            else {
                 String paramName = param.getName();
                 String paramValue = null;
                 
+                // SPRINT 6 : Variables URL
                 if (urlParams != null && urlParams.containsKey(paramName)) {
                     paramValue = urlParams.get(paramName);
-                } else {
+                } 
+                // SPRINT 6-bis : Query params
+                else {
                     paramValue = request.getParameter(paramName);
                 }
                 
@@ -99,11 +111,15 @@ public class FrameworkDispatcher {
         return null;
     }
     
-    public static void displayMethodResult(PrintWriter out, String url, 
-                                         AnnotationScanner.MappingInfo mapping, Object result) {
+    /**
+     * SPRINT 7 : Affiche le resultat avec httpMethod
+     */
+    public static void displayMethodResult(PrintWriter out, String url, MappingInfo mapping, 
+                                          Object result, String httpMethod) {
         StringBuilder info = new StringBuilder();
         info.append("=== METHODE EXECUTEE ===\n")
             .append("URL: ").append(url).append("\n")
+            .append("HTTP Method: ").append(httpMethod).append("\n")
             .append("Controleur: ").append(mapping.getControllerClass().getName()).append("\n")
             .append("Methode: ").append(mapping.getMethod().getName()).append("\n")
             .append("Type de retour: ").append(mapping.getMethod().getReturnType().getSimpleName()).append("\n");
@@ -117,28 +133,6 @@ public class FrameworkDispatcher {
         
         out.println(info.toString());
     }
-    public static void displayWelcomePage(PrintWriter out) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== FRAMEWORK SPRINT 6 - URLs MAPPEES ===\n\n")
-          .append("URLs detectees automatiquement:\n");
-        
-        // Récupérer les URLs depuis le contexte (à adapter selon ton implémentation)
-        List<String> urls = Arrays.asList(
-            "/etudiant/{id}",
-            "/etudiant/{id}/notes/{matiere}", 
-            "/recherche-etudiant",
-            "/etudiant-details",
-            "/etudiant/{id}/profil",
-            "/cours/{id}/inscription"
-        );
-        
-        for (String url : urls) {
-            sb.append("  ").append(url).append("\n");
-        }
-        
-        sb.append("\n=== Testez une URL dans la barre d'adresse ===");
-        out.print(sb.toString());
-    }
     
     public static void displayTextResult(HttpServletResponse response, String path, Object result) 
     throws IOException {
@@ -149,7 +143,8 @@ public class FrameworkDispatcher {
         out.println("Resultat: " + result);
     }
     
-    public static void displayNotFound(HttpServletResponse response, String url) throws IOException {
+    public static void displayNotFound(HttpServletResponse response, String url, String httpMethod) 
+    throws IOException {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
         response.setContentType("text/plain;charset=UTF-8");
         PrintWriter out = response.getWriter();
@@ -157,7 +152,9 @@ public class FrameworkDispatcher {
         StringBuilder sb = new StringBuilder();
         sb.append("HTTP 404 - Not Found\n")
           .append("=====================\n\n")
-          .append("URL non trouvee: ").append(url).append("\n\n")
+          .append("URL: ").append(url).append("\n")
+          .append("HTTP Method: ").append(httpMethod).append("\n\n")
+          .append("Aucun mapping trouve\n\n")
           .append("Consultez la page d'accueil pour plus de details: /");
         out.print(sb.toString());
     }

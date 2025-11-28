@@ -2,6 +2,7 @@ package framework.servlet;
 
 import framework.ModelAndView.ModelAndView;
 import framework.dispatcher.FrameworkDispatcher;
+import framework.mapping.MappingInfo;
 import framework.scanner.AnnotationScanner;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -13,7 +14,7 @@ import java.io.PrintWriter;
 import java.util.Map;
 
 /**
- * FrontServlet allégé - Délègue la logique métier
+ * SPRINT 7 : FrontServlet avec distinction GET/POST
  */
 public class FrontServlet extends HttpServlet {
 
@@ -25,14 +26,25 @@ public class FrontServlet extends HttpServlet {
         defaultDispatcher = getServletContext().getNamedDispatcher("default");
     }
 
+    /**
+     * SPRINT 7 : doPost ne delegue PLUS a doGet
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        doGet(request, response);
+        processRequest(request, response, "POST");
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        processRequest(request, response, "GET");
+    }
+
+    /**
+     * SPRINT 7 : Traite la requete avec la methode HTTP specifiee
+     */
+    private void processRequest(HttpServletRequest request, HttpServletResponse response, String httpMethod)
             throws ServletException, IOException {
 
         String uri = request.getRequestURI();        
@@ -40,13 +52,13 @@ public class FrontServlet extends HttpServlet {
         String path = uri.substring(context.length());
         String cleanPath = removeQueryParams(path);        
 
-        // Gestion des cas spéciaux
+        // Gestion des cas speciaux
         if (isSpecialCase(request, response, cleanPath)) {
             return;
         }
 
-        // Traitement framework
-        processFrameworkRequest(request, response, cleanPath);
+        // Traitement framework avec HTTP method
+        processFrameworkRequest(request, response, cleanPath, httpMethod);
     }
 
     private boolean isSpecialCase(HttpServletRequest request, HttpServletResponse response, String path) 
@@ -89,10 +101,15 @@ public class FrontServlet extends HttpServlet {
         return false;
     }
 
-    private void processFrameworkRequest(HttpServletRequest request, HttpServletResponse response, String path) 
+    /**
+     * SPRINT 7 : Traite la requete framework avec httpMethod
+     */
+    private void processFrameworkRequest(HttpServletRequest request, HttpServletResponse response, 
+                                        String path, String httpMethod) 
     throws IOException {
         
-        Object result = FrameworkDispatcher.processRequest(request, path);
+        // SPRINT 7 : Passer httpMethod a FrameworkDispatcher
+        Object result = FrameworkDispatcher.processRequest(request, path, httpMethod);
         
         if (result != null) {
             if (result instanceof ModelAndView) {
@@ -101,12 +118,14 @@ public class FrontServlet extends HttpServlet {
                 response.setContentType("text/plain;charset=UTF-8");
                 PrintWriter out = response.getWriter();
                 
-                AnnotationScanner.MappingInfo mapping = AnnotationScanner.getMappingFromContext(
-                    getServletContext(), path);
-                FrameworkDispatcher.displayMethodResult(out, path, mapping, result);
+                // SPRINT 7 : Recuperer mapping avec httpMethod
+                MappingInfo mapping = AnnotationScanner.getMappingFromContext(
+                    getServletContext(), path, httpMethod);
+                    
+                FrameworkDispatcher.displayMethodResult(out, path, mapping, result, httpMethod);
             }
         } else {
-            displayNotFound(response, path);
+            displayNotFound(response, path, httpMethod);
         }
     }
 
@@ -157,7 +176,7 @@ public class FrontServlet extends HttpServlet {
 
     private void displayAllMappings(PrintWriter out) {
         StringBuilder sb = new StringBuilder();
-        sb.append("=== FRAMEWORK SPRINT 6-bis - URLs MAPPEES ===\n\n")
+        sb.append("=== FRAMEWORK SPRINT 7 - URLs MAPPEES (GET/POST) ===\n\n")
           .append("URLs detectees automatiquement:\n");
         
         for (String url : AnnotationScanner.getMappedUrlsFromContext(getServletContext())) {
@@ -168,7 +187,8 @@ public class FrontServlet extends HttpServlet {
         out.print(sb.toString());
     }
 
-    private void displayNotFound(HttpServletResponse response, String url) throws IOException {
+    private void displayNotFound(HttpServletResponse response, String url, String httpMethod) 
+    throws IOException {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
         response.setContentType("text/plain;charset=UTF-8");
         PrintWriter out = response.getWriter();
@@ -176,7 +196,9 @@ public class FrontServlet extends HttpServlet {
         StringBuilder sb = new StringBuilder();
         sb.append("HTTP 404 - Not Found\n")
           .append("=====================\n\n")
-          .append("URL non trouvee: ").append(url).append("\n\n")
+          .append("URL: ").append(url).append("\n")
+          .append("HTTP Method: ").append(httpMethod).append("\n\n")
+          .append("Aucun mapping trouve pour cette URL et methode HTTP\n\n")
           .append("Consultez la page d'accueil pour plus de details: /");
         out.print(sb.toString());
     }

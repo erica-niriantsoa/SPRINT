@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import framework.scanner.AnnotationScanner;
-import framework.scanner.AnnotationScanner.MappingInfo;
+import framework.mapping.*;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
