@@ -154,5 +154,56 @@ public class TestController {
         
         return result.toString();
     }
+    
+    // ========================================================================
+    // SPRINT 8-BIS : Injection automatique d'objets personnalisés
+    // ========================================================================
+    
+    // Afficher le formulaire employe
+    @Url("/form-employe")
+    @Get
+    public framework.ModelAndView.ModelAndView afficherFormEmploye() {
+        return new framework.ModelAndView.ModelAndView("/views/Sprint-8/form-employe.jsp");
+    }
+    
+    // Sauvegarder un employé (POST via formulaire)
+    @Url("/save-employe")
+    @Post
+    public String saveEmployePost(test.model.Employe emp) {
+        return afficherDetailsEmploye(emp, "POST");
+    }
+    
+    // Sauvegarder un employé (GET via URL pour test rapide)
+    @Url("/save-employe")
+    @Get
+    public String saveEmployeGet(test.model.Employe emp) {
+        return afficherDetailsEmploye(emp, "GET");
+    }
+    
+    // Méthode commune pour afficher les détails
+    private String afficherDetailsEmploye(test.model.Employe emp, String method) {
+        StringBuilder result = new StringBuilder();
+        result.append("=== SPRINT 8-BIS - INJECTION D'OBJET (").append(method).append(") ===\n\n");
+        
+        if (emp == null) {
+            result.append(" Erreur : L'objet Employe est null\n");
+        } else {
+            result.append(" Objet Employe recu avec succes !\n\n");
+            result.append("Détails de l'employé :\n");
+            result.append("---------------------\n");
+            result.append("Nom     : ").append(emp.getNom()).append("\n");
+            result.append("Age     : ").append(emp.getAge()).append(" ans\n");
+            result.append("Salaire : ").append(emp.getSalaire()).append(" €\n");
+            result.append("Actif   : ").append(emp.getActif() != null ? (emp.getActif() ? "Oui" : "Non") : "null").append("\n\n");
+            result.append("toString() : ").append(emp.toString()).append("\n\n");
+            result.append("Types des attributs :\n");
+            result.append("  nom     : ").append(emp.getNom() != null ? emp.getNom().getClass().getSimpleName() : "null").append("\n");
+            result.append("  age     : ").append(emp.getAge() != null ? emp.getAge().getClass().getSimpleName() : "null").append("\n");
+            result.append("  salaire : ").append(emp.getSalaire() != null ? emp.getSalaire().getClass().getSimpleName() : "null").append("\n");
+            result.append("  actif   : ").append(emp.getActif() != null ? emp.getActif().getClass().getSimpleName() : "null").append("\n");
+        }
+        
+        return result.toString();
+    }
 
 }
