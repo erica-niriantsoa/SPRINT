@@ -49,7 +49,7 @@ public class FrameworkDispatcher {
     }
     
     /**
-     * SPRINT 6 + SPRINT 6-bis + SPRINT 6-ter : Injection de parametres
+     * SPRINT 6 + SPRINT 6-bis + SPRINT 6-ter + SPRINT 8-BIS : Injection de parametres
      */
     private static Object[] prepareMethodArguments(HttpServletRequest request, Method method, 
                                                   MappingInfo mapping) {
@@ -62,6 +62,12 @@ public class FrameworkDispatcher {
         for (int i = 0; i < parameters.length; i++) {
             Parameter param = parameters[i];
             Class<?> paramType = param.getType();
+            
+            // SPRINT 8-BIS : Si c'est un objet personnalisé (pas primitif, pas String, pas Map)
+            if (isCustomObject(paramType)) {
+                args[i] = buildObjectFromParams(request, paramType, mapping);
+                continue;
+            }
             
             // SPRINT 6-ter : @RequestParam
             if (param.isAnnotationPresent(RequestParam.class)) {
@@ -87,6 +93,83 @@ public class FrameworkDispatcher {
             }
         }
         return args;
+    }
+    
+    /**
+     * SPRINT 8-BIS : Vérifie si le type est un objet personnalisé
+     * (ni primitif, ni String, ni Map, ni type Java commun)
+     */
+    private static boolean isCustomObject(Class<?> type) {
+        // Exclure les primitives et leurs wrappers
+        if (type.isPrimitive()) return false;
+        if (type == Integer.class || type == Long.class || type == Double.class || 
+            type == Boolean.class || type == Float.class || type == Short.class ||
+            type == Byte.class || type == Character.class) return false;
+        
+        // Exclure String et Map
+        if (type == String.class) return false;
+        if (Map.class.isAssignableFrom(type)) return false;
+        
+        // Exclure les types Java standard
+        if (type.getName().startsWith("java.")) return false;
+        if (type.getName().startsWith("jakarta.")) return false;
+        
+        // C'est un objet personnalisé
+        return true;
+    }
+    
+    /**
+     * SPRINT 8-BIS : Construit un objet à partir des paramètres HTTP
+     * Utilise la reflection pour :
+     * 1. Créer une instance de l'objet
+     * 2. Pour chaque champ, récupérer la valeur du paramètre HTTP correspondant
+     * 3. Convertir et setter la valeur via le setter approprié
+     */
+    private static Object buildObjectFromParams(HttpServletRequest request, Class<?> objectType,
+                                               MappingInfo mapping) {
+        try {
+            // Créer une nouvelle instance de l'objet
+            Object instance = objectType.getDeclaredConstructor().newInstance();
+            
+            // Récupérer tous les champs de la classe
+            java.lang.reflect.Field[] fields = objectType.getDeclaredFields();
+            
+            for (java.lang.reflect.Field field : fields) {
+                String fieldName = field.getName();
+                Class<?> fieldType = field.getType();
+                
+                // Récupérer la valeur du paramètre HTTP (depuis URL params ou query params)
+                String paramValue = null;
+                if (mapping.getUrlParams() != null && mapping.getUrlParams().containsKey(fieldName)) {
+                    paramValue = mapping.getUrlParams().get(fieldName);
+                } else {
+                    paramValue = request.getParameter(fieldName);
+                }
+                
+                if (paramValue != null) {
+                    // Convertir la valeur au type approprié
+                    Object convertedValue = convertParameter(paramValue, fieldType);
+                    
+                    // Essayer d'utiliser le setter
+                    String setterName = "set" + Character.toUpperCase(fieldName.charAt(0)) + 
+                                       fieldName.substring(1);
+                    try {
+                        java.lang.reflect.Method setter = objectType.getMethod(setterName, fieldType);
+                        setter.invoke(instance, convertedValue);
+                    } catch (NoSuchMethodException e) {
+                        // Si pas de setter, accès direct au champ
+                        field.setAccessible(true);
+                        field.set(instance, convertedValue);
+                    }
+                }
+            }
+            
+            return instance;
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
     
     private static Object convertParameter(String value, Class<?> targetType) {
