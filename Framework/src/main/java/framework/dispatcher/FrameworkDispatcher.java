@@ -1,19 +1,23 @@
 package framework.dispatcher;
 
 import framework.annotation.RequestParam;
+import framework.annotation.RestAPI;
 import framework.mapping.MappingInfo;
+import framework.response.ApiResponse;
 import framework.scanner.AnnotationScanner;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.Collection;
 import java.util.Map;
 
 /**
- * SPRINT 6 + SPRINT 7 : Gere l'injection des parametres et l'execution des controleurs
+ * SPRINT 6 + SPRINT 7 + SPRINT 9 : Gere l'injection des parametres et l'execution des controleurs
  */
 public class FrameworkDispatcher {
     
@@ -246,5 +250,168 @@ public class FrameworkDispatcher {
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
         out.println("ERREUR: " + message);
+    }
+    
+    // ========================================================================
+    // SPRINT 9 : Gestion des réponses JSON pour API REST
+    // ========================================================================
+    
+    /**
+     * SPRINT 9 : Vérifie si la méthode doit retourner du JSON
+     */
+    public static boolean isRestAPI(Method method) {
+        return method.isAnnotationPresent(RestAPI.class);
+    }
+    
+    /**
+     * SPRINT 9 : Convertit un objet en JSON et envoie la réponse
+     */
+    public static void sendJsonResponse(HttpServletResponse response, Object result) throws IOException {
+        response.setContentType("application/json;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        
+        ApiResponse apiResponse;
+        
+        // Si le résultat est déjà une ApiResponse, l'utiliser directement
+        if (result instanceof ApiResponse) {
+            apiResponse = (ApiResponse) result;
+        }
+        // Si c'est un ModelAndView, extraire les données
+        else if (result != null && result.getClass().getName().contains("ModelAndView")) {
+            try {
+                // Utiliser reflection pour récupérer les données du ModelAndView
+                Field dataField = result.getClass().getDeclaredField("data");
+                dataField.setAccessible(true);
+                Object data = dataField.get(result);
+                apiResponse = ApiResponse.success(data);
+            } catch (Exception e) {
+                apiResponse = ApiResponse.error(500, "Erreur lors de l'extraction des données");
+            }
+        }
+        // Sinon, wrapper l'objet dans une ApiResponse
+        else {
+            apiResponse = ApiResponse.success(result);
+        }
+        
+        // Convertir en JSON
+        String json = convertToJson(apiResponse);
+        out.print(json);
+    }
+    
+    /**
+     * SPRINT 9 : Convertit un objet en JSON (conversion manuelle simple)
+     */
+    private static String convertToJson(Object obj) {
+        if (obj == null) {
+            return "null";
+        }
+        
+        // Si c'est une String, la retourner entre guillemets
+        if (obj instanceof String) {
+            return "\"" + escapeJson((String) obj) + "\"";
+        }
+        
+        // Si c'est un Number ou Boolean
+        if (obj instanceof Number || obj instanceof Boolean) {
+            return obj.toString();
+        }
+        
+        // Si c'est un tableau ou Collection
+        if (obj instanceof Collection || obj.getClass().isArray()) {
+            return convertCollectionToJson(obj);
+        }
+        
+        // Si c'est un Map
+        if (obj instanceof Map) {
+            return convertMapToJson((Map<?, ?>) obj);
+        }
+        
+        // Sinon, c'est un objet personnalisé
+        return convertObjectToJson(obj);
+    }
+    
+    /**
+     * Convertit un objet en JSON via reflection
+     */
+    private static String convertObjectToJson(Object obj) {
+        StringBuilder json = new StringBuilder("{");
+        
+        try {
+            Field[] fields = obj.getClass().getDeclaredFields();
+            boolean first = true;
+            
+            for (Field field : fields) {
+                field.setAccessible(true);
+                Object value = field.get(obj);
+                
+                if (!first) json.append(",");
+                first = false;
+                
+                json.append("\"").append(field.getName()).append("\":");
+                json.append(convertToJson(value));
+            }
+        } catch (Exception e) {
+            return "{}";
+        }
+        
+        json.append("}");
+        return json.toString();
+    }
+    
+    /**
+     * Convertit une Map en JSON
+     */
+    private static String convertMapToJson(Map<?, ?> map) {
+        StringBuilder json = new StringBuilder("{");
+        boolean first = true;
+        
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (!first) json.append(",");
+            first = false;
+            
+            json.append("\"").append(entry.getKey().toString()).append("\":");
+            json.append(convertToJson(entry.getValue()));
+        }
+        
+        json.append("}");
+        return json.toString();
+    }
+    
+    /**
+     * Convertit une Collection ou Array en JSON
+     */
+    private static String convertCollectionToJson(Object obj) {
+        StringBuilder json = new StringBuilder("[");
+        boolean first = true;
+        
+        if (obj instanceof Collection) {
+            for (Object item : (Collection<?>) obj) {
+                if (!first) json.append(",");
+                first = false;
+                json.append(convertToJson(item));
+            }
+        } else if (obj.getClass().isArray()) {
+            Object[] array = (Object[]) obj;
+            for (Object item : array) {
+                if (!first) json.append(",");
+                first = false;
+                json.append(convertToJson(item));
+            }
+        }
+        
+        json.append("]");
+        return json.toString();
+    }
+    
+    /**
+     * Échappe les caractères spéciaux pour JSON
+     */
+    private static String escapeJson(String str) {
+        if (str == null) return "";
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
     }
 }

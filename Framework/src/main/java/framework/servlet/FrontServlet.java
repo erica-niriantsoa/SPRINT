@@ -102,26 +102,31 @@ public class FrontServlet extends HttpServlet {
     }
 
     /**
-     * SPRINT 7 : Traite la requete framework avec httpMethod
+     * SPRINT 7 + SPRINT 9 : Traite la requete framework avec httpMethod
      */
     private void processFrameworkRequest(HttpServletRequest request, HttpServletResponse response, 
                                         String path, String httpMethod) 
     throws IOException {
         
+        // Récupérer le mapping
+        MappingInfo mapping = AnnotationScanner.getMappingFromContext(
+            getServletContext(), path, httpMethod);
+        
         // SPRINT 7 : Passer httpMethod a FrameworkDispatcher
         Object result = FrameworkDispatcher.processRequest(request, path, httpMethod);
         
         if (result != null) {
-            if (result instanceof ModelAndView) {
+            // SPRINT 9 : Vérifier si la méthode a @RestAPI
+            if (mapping != null && FrameworkDispatcher.isRestAPI(mapping.getMethod())) {
+                // Retourner une réponse JSON
+                FrameworkDispatcher.sendJsonResponse(response, result);
+            } 
+            // Traitement classique
+            else if (result instanceof ModelAndView) {
                 handleModelView(request, response, (ModelAndView) result);
             } else {
                 response.setContentType("text/plain;charset=UTF-8");
                 PrintWriter out = response.getWriter();
-                
-                // SPRINT 7 : Recuperer mapping avec httpMethod
-                MappingInfo mapping = AnnotationScanner.getMappingFromContext(
-                    getServletContext(), path, httpMethod);
-                    
                 FrameworkDispatcher.displayMethodResult(out, path, mapping, result, httpMethod);
             }
         } else {
