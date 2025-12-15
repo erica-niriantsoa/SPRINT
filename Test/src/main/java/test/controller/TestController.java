@@ -205,5 +205,86 @@ public class TestController {
         
         return result.toString();
     }
+    
+    // ========================================================================
+    // SPRINT 9 : API REST avec réponses JSON
+    // ========================================================================
+    
+    // Test 1 : Retourner un objet simple en JSON
+    @Url("/api/employe/{id}")
+    @Get
+    @framework.annotation.RestAPI
+    public test.model.Employe getEmployeJson(int id) {
+        test.model.Employe emp = new test.model.Employe();
+        emp.setNom("Rakoto");
+        emp.setAge(25);
+        emp.setSalaire(2500.50);
+        emp.setActif(true);
+        return emp;
+    }
+    
+    // Test 2 : Retourner une liste en JSON
+    @Url("/api/employes")
+    @Get
+    @framework.annotation.RestAPI
+    public java.util.List<test.model.Employe> getAllEmployesJson() {
+        java.util.List<test.model.Employe> employes = new java.util.ArrayList<>();
+        
+        test.model.Employe emp1 = new test.model.Employe();
+        emp1.setNom("Rakoto");
+        emp1.setAge(25);
+        emp1.setSalaire(2500.50);
+        emp1.setActif(true);
+        employes.add(emp1);
+        
+        test.model.Employe emp2 = new test.model.Employe();
+        emp2.setNom("Jean");
+        emp2.setAge(30);
+        emp2.setSalaire(3000.00);
+        emp2.setActif(false);
+        employes.add(emp2);
+        
+        return employes;
+    }
+    
+    // Test 3 : Retourner une ApiResponse personnalisée
+    @Url("/api/employe")
+    @Post
+    @framework.annotation.RestAPI
+    public framework.response.ApiResponse createEmployeJson(test.model.Employe emp) {
+        if (emp.getNom() == null || emp.getNom().isEmpty()) {
+            return framework.response.ApiResponse.error(400, "Le nom est obligatoire");
+        }
+        return framework.response.ApiResponse.success(201, emp);
+    }
+    
+    // Test 4 : Retourner un ModelAndView avec @RestAPI (extrait les données)
+    @Url("/api/employe/details")
+    @Get
+    @framework.annotation.RestAPI
+    public framework.ModelAndView.ModelAndView getEmployeDetailsJson() {
+        test.model.Employe emp = new test.model.Employe();
+        emp.setNom("Ribo");
+        emp.setAge(28);
+        emp.setSalaire(2800.75);
+        emp.setActif(true);
+        
+        framework.ModelAndView.ModelAndView mv = new framework.ModelAndView.ModelAndView("/views/test.jsp");
+        mv.addObject("employe", emp);
+        return mv;
+    }
+    
+    // Test 5 : Retourner un Map en JSON
+    @Url("/api/stats")
+    @Get
+    @framework.annotation.RestAPI
+    public java.util.Map<String, Object> getStatsJson() {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("totalEmployes", 42);
+        stats.put("salairesMoyen", 2750.50);
+        stats.put("actifs", 38);
+        stats.put("inactifs", 4);
+        return stats;
+    }
 
 }
