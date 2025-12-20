@@ -205,6 +205,18 @@ public class TestController {
         
         return result.toString();
     }
+
+    @Url("/api/test-array")
+    @Get
+    public String testArrayParam(String[] values) {
+        StringBuilder result = new StringBuilder();
+        result.append("=== Test Array Parameter ===\n\n");
+        result.append("Values received:\n");
+        for (String value : values) {
+            result.append("- ").append(value).append("\n");
+        }
+        return result.toString();
+    }
     
     // ========================================================================
     // SPRINT 9 : API REST avec réponses JSON
