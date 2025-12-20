@@ -101,9 +101,12 @@ public class FrameworkDispatcher {
     
     /**
      * SPRINT 8-BIS : Vérifie si le type est un objet personnalisé
-     * (ni primitif, ni String, ni Map, ni type Java commun)
+     * (ni primitif, ni String, ni Map, ni Array, ni type Java commun)
      */
     private static boolean isCustomObject(Class<?> type) {
+        // Exclure les arrays
+        if (type.isArray()) return false;
+        
         // Exclure les primitives et leurs wrappers
         if (type.isPrimitive()) return false;
         if (type == Integer.class || type == Long.class || type == Double.class || 
@@ -139,31 +142,24 @@ public class FrameworkDispatcher {
             java.lang.reflect.Field[] fields = objectType.getDeclaredFields();
             
             for (java.lang.reflect.Field field : fields) {
-                String fieldName = field.getName();
-                Class<?> fieldType = field.getType();
-                
-                // Récupérer la valeur du paramètre HTTP (depuis URL params ou query params)
-                String paramValue = null;
-                if (mapping.getUrlParams() != null && mapping.getUrlParams().containsKey(fieldName)) {
-                    paramValue = mapping.getUrlParams().get(fieldName);
-                } else {
-                    paramValue = request.getParameter(fieldName);
-                }
-                
+                field.setAccessible(true);
+                String paramName = field.getName();
+                String paramValue = request.getParameter(paramName);
+
                 if (paramValue != null) {
-                    // Convertir la valeur au type approprié
-                    Object convertedValue = convertParameter(paramValue, fieldType);
-                    
-                    // Essayer d'utiliser le setter
-                    String setterName = "set" + Character.toUpperCase(fieldName.charAt(0)) + 
-                                       fieldName.substring(1);
-                    try {
-                        java.lang.reflect.Method setter = objectType.getMethod(setterName, fieldType);
-                        setter.invoke(instance, convertedValue);
-                    } catch (NoSuchMethodException e) {
-                        // Si pas de setter, accès direct au champ
-                        field.setAccessible(true);
-                        field.set(instance, convertedValue);
+                    Class<?> fieldType = field.getType();
+
+                    if (fieldType.isArray()) {
+                        Class<?> componentType = fieldType.getComponentType();
+                        String[] values = paramValue.split(",");
+                        Object array = java.lang.reflect.Array.newInstance(componentType, values.length);
+
+                        for (int i = 0; i < values.length; i++) {
+                            java.lang.reflect.Array.set(array, i, convertParameter(values[i].trim(), componentType));
+                        }
+                        field.set(instance, array);
+                    } else {
+                        field.set(instance, convertParameter(paramValue, fieldType));
                     }
                 }
             }
@@ -178,8 +174,19 @@ public class FrameworkDispatcher {
     
     private static Object convertParameter(String value, Class<?> targetType) {
         if (value == null) return getDefaultValue(targetType);
-        
+
         try {
+            if (targetType.isArray()) {
+                Class<?> componentType = targetType.getComponentType();
+                String[] values = value.split(","); // Suppose que les valeurs sont séparées par des virgules
+                Object array = java.lang.reflect.Array.newInstance(componentType, values.length);
+
+                for (int i = 0; i < values.length; i++) {
+                    java.lang.reflect.Array.set(array, i, convertParameter(values[i].trim(), componentType));
+                }
+                return array;
+            }
+
             if (targetType == int.class || targetType == Integer.class) return Integer.parseInt(value);
             if (targetType == long.class || targetType == Long.class) return Long.parseLong(value);
             if (targetType == double.class || targetType == Double.class) return Double.parseDouble(value);
