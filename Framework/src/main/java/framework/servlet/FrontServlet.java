@@ -6,6 +6,7 @@ import framework.mapping.MappingInfo;
 import framework.scanner.AnnotationScanner;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,8 +15,13 @@ import java.io.PrintWriter;
 import java.util.Map;
 
 /**
- * SPRINT 7 : FrontServlet avec distinction GET/POST
+ * SPRINT 7 + SPRINT 10 : FrontServlet avec distinction GET/POST et upload de fichiers
  */
+@MultipartConfig(
+    maxFileSize = 1024 * 1024 * 10,      // 10 MB max par fichier
+    maxRequestSize = 1024 * 1024 * 50,   // 50 MB max pour la requête complète
+    fileSizeThreshold = 1024 * 1024      // 1 MB avant d'écrire sur disque
+)
 public class FrontServlet extends HttpServlet {
 
     RequestDispatcher defaultDispatcher;

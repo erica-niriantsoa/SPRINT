@@ -1,19 +1,25 @@
 package framework.dispatcher;
 
+import framework.annotation.FileParam;
 import framework.annotation.RequestParam;
 import framework.annotation.RestAPI;
 import framework.mapping.MappingInfo;
 import framework.response.ApiResponse;
 import framework.scanner.AnnotationScanner;
+import framework.upload.FileUpload;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -53,7 +59,7 @@ public class FrameworkDispatcher {
     }
     
     /**
-     * SPRINT 6 + SPRINT 6-bis + SPRINT 6-ter + SPRINT 8-BIS : Injection de parametres
+     * SPRINT 6 + SPRINT 6-bis + SPRINT 6-ter + SPRINT 8-BIS + SPRINT 10 : Injection de parametres
      */
     private static Object[] prepareMethodArguments(HttpServletRequest request, Method method, 
                                                   MappingInfo mapping) {
@@ -63,9 +69,28 @@ public class FrameworkDispatcher {
         // SPRINT 6 : Recuperer variables URL
         Map<String, String> urlParams = mapping.getUrlParams();
         
+        // SPRINT 10 : Récupérer les fichiers uploadés
+        Map<String, FileUpload> uploadedFiles = extractUploadedFiles(request);
+        
         for (int i = 0; i < parameters.length; i++) {
             Parameter param = parameters[i];
             Class<?> paramType = param.getType();
+            
+            // SPRINT 10 : @FileParam - Fichier uploadé
+            if (param.isAnnotationPresent(FileParam.class)) {
+                FileParam annotation = param.getAnnotation(FileParam.class);
+                String fileName = annotation.value();
+                FileUpload fileUpload = uploadedFiles.get(fileName);
+                
+                // Si le paramètre attend byte[], on donne seulement le contenu
+                if (paramType == byte[].class) {
+                    args[i] = fileUpload != null ? fileUpload.getContent() : null;
+                } else {
+                    // Sinon on donne l'objet FileUpload complet
+                    args[i] = fileUpload;
+                }
+                continue;
+            }
             
             // SPRINT 8-BIS : Si c'est un objet personnalisé (pas primitif, pas String, pas Map)
             if (isCustomObject(paramType)) {
@@ -100,28 +125,60 @@ public class FrameworkDispatcher {
     }
     
     /**
+     * SPRINT 10 : Extrait tous les fichiers uploadés de la requête
+     * @return Map avec le nom du champ comme clé et l'objet FileUpload comme valeur
+     */
+    private static Map<String, FileUpload> extractUploadedFiles(HttpServletRequest request) {
+        Map<String, FileUpload> files = new HashMap<>();
+        
+        try {
+            // Vérifier si la requête contient des fichiers (multipart/form-data)
+            if (request.getContentType() != null && 
+                request.getContentType().toLowerCase().startsWith("multipart/form-data")) {
+                
+                Collection<Part> parts = request.getParts();
+                
+                for (Part part : parts) {
+                    // Vérifier si c'est un fichier (et pas un champ texte)
+                    if (part.getSubmittedFileName() != null && !part.getSubmittedFileName().isEmpty()) {
+                        String fieldName = part.getName();
+                        String fileName = part.getSubmittedFileName();
+                        String contentType = part.getContentType();
+                        
+                        // Lire le contenu du fichier en byte array
+                        try (InputStream inputStream = part.getInputStream()) {
+                            byte[] fileContent = inputStream.readAllBytes();
+                            FileUpload fileUpload = new FileUpload(fileName, contentType, fileContent);
+                            files.put(fieldName, fileUpload);
+                        }
+                    }
+                }
+            }
+        } catch (IOException | ServletException e) {
+            e.printStackTrace();
+        }
+        
+        return files;
+    }
+    
+    /**
      * SPRINT 8-BIS : Vérifie si le type est un objet personnalisé
      * (ni primitif, ni String, ni Map, ni Array, ni type Java commun)
      */
     private static boolean isCustomObject(Class<?> type) {
-        // Exclure les arrays
         if (type.isArray()) return false;
         
-        // Exclure les primitives et leurs wrappers
         if (type.isPrimitive()) return false;
         if (type == Integer.class || type == Long.class || type == Double.class || 
             type == Boolean.class || type == Float.class || type == Short.class ||
             type == Byte.class || type == Character.class) return false;
         
-        // Exclure String et Map
         if (type == String.class) return false;
         if (Map.class.isAssignableFrom(type)) return false;
         
-        // Exclure les types Java standard
         if (type.getName().startsWith("java.")) return false;
         if (type.getName().startsWith("jakarta.")) return false;
         
-        // C'est un objet personnalisé
         return true;
     }
     
@@ -135,10 +192,8 @@ public class FrameworkDispatcher {
     private static Object buildObjectFromParams(HttpServletRequest request, Class<?> objectType,
                                                MappingInfo mapping) {
         try {
-            // Créer une nouvelle instance de l'objet
             Object instance = objectType.getDeclaredConstructor().newInstance();
             
-            // Récupérer tous les champs de la classe
             java.lang.reflect.Field[] fields = objectType.getDeclaredFields();
             
             for (java.lang.reflect.Field field : fields) {
@@ -312,28 +367,23 @@ public class FrameworkDispatcher {
         if (obj == null) {
             return "null";
         }
-        
-        // Si c'est une String, la retourner entre guillemets
+    
         if (obj instanceof String) {
             return "\"" + escapeJson((String) obj) + "\"";
         }
         
-        // Si c'est un Number ou Boolean
         if (obj instanceof Number || obj instanceof Boolean) {
             return obj.toString();
         }
         
-        // Si c'est un tableau ou Collection
         if (obj instanceof Collection || obj.getClass().isArray()) {
             return convertCollectionToJson(obj);
         }
         
-        // Si c'est un Map
         if (obj instanceof Map) {
             return convertMapToJson((Map<?, ?>) obj);
         }
         
-        // Sinon, c'est un objet personnalisé
         return convertObjectToJson(obj);
     }
     
