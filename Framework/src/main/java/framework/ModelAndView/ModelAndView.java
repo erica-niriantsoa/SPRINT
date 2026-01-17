@@ -6,10 +6,21 @@ import java.util.Map;
 public class ModelAndView {
     private String view;  // Le nom de la vue (ex: "test.jsp")
     private Map<String, Object> model;
+    private Map<String, Object> session;
 
     public ModelAndView(String view) {
         this.view = view;
         this.model = new HashMap<>();
+        this.session = new HashMap<>();
+    }
+
+    public ModelAndView addSession(String key, Object value) {
+        this.session.put(key, value);
+        return this;
+    }
+
+    public Map<String, Object> getSession(){
+        return this.session;
     }
     
     public String getView() {

@@ -10,3 +10,6 @@ Thumbs.db
 .classpath
 .project
 .vscode/
+
+# Build artifacts
+target/

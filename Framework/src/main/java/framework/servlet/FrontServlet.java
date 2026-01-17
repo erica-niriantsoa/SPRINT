@@ -10,6 +10,7 @@ import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
@@ -150,6 +151,15 @@ public class FrontServlet extends HttpServlet {
             PrintWriter out = response.getWriter();
             out.println("ERREUR: La vue '" + viewName + "' n'existe pas");
             return;
+        }
+
+        // SPRINT 11 : Synchroniser les données de session du ModelAndView vers HttpSession
+        Map<String, Object> mvSession = mv.getSession();
+        if (mvSession != null && !mvSession.isEmpty()) {
+            HttpSession httpSession = request.getSession(true);
+            for (Map.Entry<String, Object> entry : mvSession.entrySet()) {
+                httpSession.setAttribute(entry.getKey(), entry.getValue());
+            }
         }
 
         Map<String, Object> model = mv.getModel();
