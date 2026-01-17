@@ -3,6 +3,7 @@ package framework.dispatcher;
 import framework.annotation.FileParam;
 import framework.annotation.RequestParam;
 import framework.annotation.RestAPI;
+import framework.annotation.Session;
 import framework.mapping.MappingInfo;
 import framework.response.ApiResponse;
 import framework.scanner.AnnotationScanner;
@@ -10,6 +11,7 @@ import framework.upload.FileUpload;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 import java.io.IOException;
@@ -19,11 +21,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * SPRINT 6 + SPRINT 7 + SPRINT 9 : Gere l'injection des parametres et l'execution des controleurs
+ * SPRINT 6 + SPRINT 7 + SPRINT 9 + SPRINT 11 : Gere l'injection des parametres et l'execution des controleurs
  */
 public class FrameworkDispatcher {
     
@@ -50,7 +53,12 @@ public class FrameworkDispatcher {
             Method method = mapping.getMethod();
             
             Object[] methodArgs = prepareMethodArguments(request, method, mapping);
-            return method.invoke(controllerInstance, methodArgs);
+            Object result = method.invoke(controllerInstance, methodArgs);
+            
+            // SPRINT 11 : Synchroniser la session après l'exécution de la méthode
+            syncSessionBack(request, methodArgs, method.getParameters());
+            
+            return result;
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -59,7 +67,28 @@ public class FrameworkDispatcher {
     }
     
     /**
-     * SPRINT 6 + SPRINT 6-bis + SPRINT 6-ter + SPRINT 8-BIS + SPRINT 10 : Injection de parametres
+     * SPRINT 11 : Synchronise les modifications de la Map de session vers HttpSession
+     */
+    private static void syncSessionBack(HttpServletRequest request, Object[] methodArgs, Parameter[] parameters) {
+        HttpSession httpSession = request.getSession(false);
+        if (httpSession == null) return;
+        
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter param = parameters[i];
+            if (param.isAnnotationPresent(Session.class) && methodArgs[i] instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> sessionMap = (Map<String, Object>) methodArgs[i];
+                
+                // Synchroniser les modifications vers HttpSession
+                for (Map.Entry<String, Object> entry : sessionMap.entrySet()) {
+                    httpSession.setAttribute(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+    }
+    
+    /**
+     * SPRINT 6 + SPRINT 6-bis + SPRINT 6-ter + SPRINT 8-BIS + SPRINT 10 + SPRINT 11 : Injection de parametres
      */
     private static Object[] prepareMethodArguments(HttpServletRequest request, Method method, 
                                                   MappingInfo mapping) {
@@ -75,6 +104,22 @@ public class FrameworkDispatcher {
         for (int i = 0; i < parameters.length; i++) {
             Parameter param = parameters[i];
             Class<?> paramType = param.getType();
+            
+            // SPRINT 11 : @Session - Injection de la session HTTP comme Map
+            if (param.isAnnotationPresent(Session.class)) {
+                if (Map.class.isAssignableFrom(paramType)) {
+                    args[i] = extractSessionAsMap(request);
+                } else {
+                    args[i] = null; // Type non supporté pour @Session
+                }
+                continue;
+            }
+            
+            // SPRINT 11 : Injection automatique de HttpServletRequest
+            if (paramType == HttpServletRequest.class) {
+                args[i] = request;
+                continue;
+            }
             
             // SPRINT 10 : @FileParam - Fichier uploadé
             if (param.isAnnotationPresent(FileParam.class)) {
@@ -122,6 +167,24 @@ public class FrameworkDispatcher {
             }
         }
         return args;
+    }
+    
+    /**
+     * SPRINT 11 : Extrait la HttpSession comme Map<String, Object>
+     * Crée une copie de tous les attributs de la session
+     */
+    private static Map<String, Object> extractSessionAsMap(HttpServletRequest request) {
+        Map<String, Object> sessionMap = new HashMap<>();
+        HttpSession httpSession = request.getSession(true); // Créer si n'existe pas
+        
+        Enumeration<String> attributeNames = httpSession.getAttributeNames();
+        while (attributeNames.hasMoreElements()) {
+            String key = attributeNames.nextElement();
+            Object value = httpSession.getAttribute(key);
+            sessionMap.put(key, value);
+        }
+        
+        return sessionMap;
     }
     
     /**

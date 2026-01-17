@@ -153,13 +153,13 @@ timeout /t 10 /nobreak >nul
 echo.
 echo === VERIFICATION ===
 if exist "%TOMCAT_PATH%\Test" (
-    echo ✅ Deploiement reussi: %TOMCAT_PATH%\Test
+    echo  Deploiement reussi: %TOMCAT_PATH%\Test
     echo.
     echo URLs a tester:
     echo http://localhost:8080/Test/
     echo http://localhost:8080/Test/index.jsp
 ) else (
-    echo ❌ Le deploiement a echoue - le dossier Test n'a pas ete cree
+    echo  Le deploiement a echoue - le dossier Test n'a pas ete cree
 )
 
 echo.

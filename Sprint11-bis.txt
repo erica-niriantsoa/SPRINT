@@ -1,0 +1,11 @@
+methode d'action dans controller, ajouter une annotation ROleCHef seulement qui peut executer, ou anonyme, ou n'importe quelle role,
+la personne est obliger d'authentifier, 
+le role du personne peut etre chef 
+autoriser 
+autorised
+role
+c'est la qu'il peut executer
+l'utilisateur se logue
+comment on fait
+
+annoter a chaque methode
