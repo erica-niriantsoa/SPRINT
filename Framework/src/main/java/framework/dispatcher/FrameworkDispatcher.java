@@ -1,12 +1,16 @@
 package framework.dispatcher;
 
+import framework.annotation.AuthenticatedOnly;
 import framework.annotation.FileParam;
 import framework.annotation.RequestParam;
 import framework.annotation.RestAPI;
+import framework.annotation.RoleRequired;
 import framework.annotation.Session;
 import framework.mapping.MappingInfo;
 import framework.response.ApiResponse;
 import framework.scanner.AnnotationScanner;
+import framework.security.AuthenticationManager;
+import framework.security.User;
 import framework.upload.FileUpload;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,7 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * SPRINT 6 + SPRINT 7 + SPRINT 9 + SPRINT 11 : Gere l'injection des parametres et l'execution des controleurs
+ * SPRINT 6 + SPRINT 7 + SPRINT 9 + SPRINT 11 + SPRINT 11-bis : Gere l'injection des parametres et l'execution des controleurs
  */
 public class FrameworkDispatcher {
     
@@ -52,6 +56,12 @@ public class FrameworkDispatcher {
             Object controllerInstance = mapping.getControllerClass().getDeclaredConstructor().newInstance();
             Method method = mapping.getMethod();
             
+            // SPRINT 11-bis : Vérification de la sécurité avant l'exécution
+            String securityError = checkSecurity(request, method);
+            if (securityError != null) {
+                return securityError;
+            }
+            
             Object[] methodArgs = prepareMethodArguments(request, method, mapping);
             Object result = method.invoke(controllerInstance, methodArgs);
             
@@ -64,6 +74,53 @@ public class FrameworkDispatcher {
             e.printStackTrace();
             return "Erreur lors de l'execution: " + e.getMessage();
         }
+    }
+    
+    /**
+     * SPRINT 11-bis : Vérifie les autorisations de sécurité pour une méthode
+     * @param request La requête HTTP
+     * @param method La méthode à exécuter
+     * @return Un message d'erreur si accès refusé, null si autorisé
+     */
+    private static String checkSecurity(HttpServletRequest request, Method method) {
+        HttpSession session = request.getSession(false);
+        
+        // Vérifier si la méthode nécessite une authentification
+        boolean requiresAuth = method.isAnnotationPresent(AuthenticatedOnly.class);
+        boolean requiresRole = method.isAnnotationPresent(RoleRequired.class);
+        
+        if (!requiresAuth && !requiresRole) {
+            // Pas de restriction de sécurité
+            return null;
+        }
+        
+        // Récupérer l'utilisateur connecté depuis la session
+        User currentUser = null;
+        if (session != null) {
+            currentUser = (User) session.getAttribute(AuthenticationManager.SESSION_USER_KEY);
+        }
+        
+        // Vérifier l'authentification
+        if (requiresAuth && currentUser == null) {
+            return "ERREUR 401 : Accès refusé. Vous devez être authentifié pour accéder à cette ressource.";
+        }
+        
+        // Vérifier le rôle si nécessaire
+        if (requiresRole) {
+            if (currentUser == null) {
+                return "ERREUR 401 : Accès refusé. Vous devez être authentifié pour accéder à cette ressource.";
+            }
+            
+            RoleRequired roleAnnotation = method.getAnnotation(RoleRequired.class);
+            String[] requiredRoles = roleAnnotation.value();
+            
+            if (!AuthenticationManager.hasRole(currentUser, requiredRoles)) {
+                return "ERREUR 403 : Accès interdit. Votre rôle (" + currentUser.getRole() + 
+                       ") n'est pas autorisé à accéder à cette ressource.";
+            }
+        }
+        
+        return null; // Autorisé
     }
     
     /**
