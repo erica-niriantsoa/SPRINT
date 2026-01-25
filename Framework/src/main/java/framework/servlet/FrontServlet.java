@@ -131,6 +131,9 @@ public class FrontServlet extends HttpServlet {
             // Traitement classique
             else if (result instanceof ModelAndView) {
                 handleModelView(request, response, (ModelAndView) result);
+            } else if (result instanceof String && ((String) result).startsWith("views/")) {
+                // SPRINT 11-bis : Si c'est une String commençant par "views/", c'est un nom de vue à dispatcher
+                handleView(request, response, (String) result);
             } else {
                 response.setContentType("text/plain;charset=UTF-8");
                 PrintWriter out = response.getWriter();
@@ -169,6 +172,32 @@ public class FrontServlet extends HttpServlet {
             }
         }
         
+        request.setAttribute(FRAMEWORK_PROCESSED, true);
+        
+        RequestDispatcher dispatcher = request.getRequestDispatcher(viewName);
+        try {
+            dispatcher.forward(request, response);
+        } catch (Exception e) {
+            response.setContentType("text/html");
+            PrintWriter out = response.getWriter();
+            out.println("ERREUR lors du forward: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * SPRINT 11-bis : Gère le dispatching vers une vue JSP simple (sans modèle)
+     */
+    private void handleView(HttpServletRequest request, HttpServletResponse response, String viewName) 
+    throws IOException {
+        
+        if (getServletContext().getResource(viewName) == null) {
+            response.setContentType("text/html");
+            PrintWriter out = response.getWriter();
+            out.println("ERREUR: La vue '" + viewName + "' n'existe pas");
+            return;
+        }
+
         request.setAttribute(FRAMEWORK_PROCESSED, true);
         
         RequestDispatcher dispatcher = request.getRequestDispatcher(viewName);
